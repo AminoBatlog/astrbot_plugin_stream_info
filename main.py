@@ -55,21 +55,24 @@ async def get_live_status(room_id: str) -> Optional[dict]:
                 BILIBILI_ROOM_API,
                 params={"room_id": room_id},
                 headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer": "https://live.bilibili.com/",
                 },
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("code") == 0:
-                        info = data.get("data", {})
+                        room_info = data.get("data", {}).get("room_info", {})
+                        anchor_info = data.get("data", {}).get("anchor_info", {}).get("base_info", {})
                         return {
-                            "live_status": info.get("live_status", 0),
-                            "title": info.get("title", ""),
-                            "uname": info.get("uname", ""),
-                            "area_name": info.get("area_name", ""),
-                            "cover": info.get("user_cover", ""),
-                            "keyframe": info.get("keyframe", ""),
+                            "live_status": room_info.get("live_status", 0),
+                            "title": room_info.get("title", ""),
+                            "uname": anchor_info.get("uname", ""),
+                            "area_name": room_info.get("area_name", ""),
+                            "cover": room_info.get("cover", ""),
+                            "keyframe": room_info.get("keyframe", ""),
+                            "face": anchor_info.get("face", ""),
                         }
     except Exception as e:
         logger.error(f"获取直播状态失败: {e}")
@@ -146,26 +149,41 @@ class StreamInfoPlugin(Star):
             logger.warning("未配置通知群组，跳过通知发送")
             return
 
+        room_id = self.config.get("room_id", "")
+        from astrbot.core.message.components import Plain, Image
+        
         if is_online:
             text = self.config.get("notify_text", "")
-            room_id = self.config.get("room_id", "")
             title = status_info.get("title", "")
             uname = status_info.get("uname", "")
             area = status_info.get("area_name", "")
+            cover = status_info.get("cover", "") or status_info.get("keyframe", "")
             link = f"https://live.bilibili.com/{room_id}"
-            message = f"{text}\n主播: {uname}\n标题: {title}\n分区: {area}\n直播间: {link}"
+            
+            message_text = f"{text}\n\n🔴 主播: {uname}\n📺 标题: {title}\n🏷️ 分区: {area}\n\n👉 点击进入直播间: {link}"
+            
+            components = []
+            if cover:
+                components.append(Image.fromURL(cover))
+            components.append(Plain(message_text))
+            chain = MessageChain(components)
+            
+            for group_id in groups:
+                try:
+                    await self._send_to_group(str(group_id), chain)
+                    logger.info(f"已向群 {group_id} 发送开播通知")
+                except Exception as e:
+                    logger.error(f"向群 {group_id} 发送通知失败: {e}")
         else:
             message = self.config.get("offline_text", "")
-
-        from astrbot.core.message.components import Plain
-        chain = MessageChain([Plain(message)])
-
-        for group_id in groups:
-            try:
-                await self._send_to_group(str(group_id), chain)
-                logger.info(f"已向群 {group_id} 发送{'开播' if is_online else '关播'}通知")
-            except Exception as e:
-                logger.error(f"向群 {group_id} 发送通知失败: {e}")
+            chain = MessageChain([Plain(message)])
+            
+            for group_id in groups:
+                try:
+                    await self._send_to_group(str(group_id), chain)
+                    logger.info(f"已向群 {group_id} 发送关播通知")
+                except Exception as e:
+                    logger.error(f"向群 {group_id} 发送通知失败: {e}")
 
     async def _send_to_group(self, group_id: str, chain: MessageChain):
         platforms = self.context.platform_manager.get_insts()
