@@ -1,0 +1,44 @@
+{
+  "admins": {
+    "description": "管理员QQ号列表",
+    "type": "list",
+    "hint": "有权限使用直播通知管理命令的QQ号列表",
+    "default": []
+  },
+  "groups": {
+    "description": "通知群号列表",
+    "type": "list",
+    "hint": "接收直播通知的QQ群号列表",
+    "default": []
+  },
+  "room_id": {
+    "description": "B站直播间号",
+    "type": "string",
+    "hint": "要监控的Bilibili直播间房间号",
+    "default": ""
+  },
+  "notify_text": {
+    "description": "开播通知内容",
+    "type": "text",
+    "hint": "检测到开播时发送的通知文本",
+    "default": "【直播通知】主播开播啦！快来围观~"
+  },
+  "offline_text": {
+    "description": "关播通知内容",
+    "type": "text",
+    "hint": "检测到关播时发送的通知文本",
+    "default": "【直播通知】主播下播了，下次再见~"
+  },
+  "check_interval": {
+    "description": "检测间隔(秒)",
+    "type": "int",
+    "hint": "直播状态检测的时间间隔，单位为秒",
+    "default": 60
+  },
+  "cooldown_hours": {
+    "description": "通知冷却时间(小时)",
+    "type": "int",
+    "hint": "开播通知的冷却时间，防止频繁开关播重复通知",
+    "default": 4
+  }
+}
