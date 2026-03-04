@@ -46,7 +46,7 @@ def save_state(state: dict):
         logger.error(f"保存状态文件失败: {e}")
 
 
-async def get_live_status(room_id: str) -> Optional[dict]:
+async def get_live_status(room_id: str, debug: bool = False) -> Optional[dict]:
     if not room_id:
         return None
     try:
@@ -61,9 +61,11 @@ async def get_live_status(room_id: str) -> Optional[dict]:
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
+                    if debug:
+                        logger.info(f"[StreamInfo DEBUG] API原始返回: {json.dumps(data, ensure_ascii=False, indent=2)}")
                     if data.get("code") == 0:
                         info = data.get("data", {})
-                        return {
+                        result = {
                             "live_status": info.get("live_status", 0),
                             "title": info.get("title", ""),
                             "uname": info.get("uname", ""),
@@ -71,8 +73,17 @@ async def get_live_status(room_id: str) -> Optional[dict]:
                             "cover": info.get("user_cover", ""),
                             "keyframe": info.get("keyframe", ""),
                         }
+                        if debug:
+                            logger.info(f"[StreamInfo DEBUG] 解析结果: {json.dumps(result, ensure_ascii=False)}")
+                        return result
+                else:
+                    if debug:
+                        logger.warning(f"[StreamInfo DEBUG] API请求失败, HTTP状态码: {resp.status}")
     except Exception as e:
         logger.error(f"获取直播状态失败: {e}")
+        if debug:
+            import traceback
+            logger.error(f"[StreamInfo DEBUG] 异常详情: {traceback.format_exc()}")
     return None
 
 
@@ -114,7 +125,8 @@ class StreamInfoPlugin(Star):
         if not room_id:
             return
 
-        status_info = await get_live_status(room_id)
+        debug_mode = self.config.get("debug_mode", False)
+        status_info = await get_live_status(room_id, debug=debug_mode)
         if status_info is None:
             return
 
@@ -153,12 +165,29 @@ class StreamInfoPlugin(Star):
             uname = status_info.get("uname", "")
             area = status_info.get("area_name", "")
             link = f"https://live.bilibili.com/{room_id}"
-            message = f"{text}\n主播: {uname}\n标题: {title}\n分区: {area}\n直播间: {link}"
+            
+            lines = [text]
+            if uname:
+                lines.append(f"主播: {uname}")
+            if title:
+                lines.append(f"标题: {title}")
+            if area:
+                lines.append(f"分区: {area}")
+            message = "\n".join(lines)
         else:
+            room_id = self.config.get("room_id", "")
+            link = f"https://live.bilibili.com/{room_id}"
             message = self.config.get("offline_text", "")
 
         from astrbot.core.message.components import Plain
-        chain = MessageChain([Plain(message)])
+        
+        json_card = self._build_share_card(
+            title="📺 直播通知" if is_online else "直播已结束",
+            desc=message,
+            url=link,
+            is_online=is_online
+        )
+        chain = MessageChain([Plain(json_card)])
 
         for group_id in groups:
             try:
@@ -166,6 +195,32 @@ class StreamInfoPlugin(Star):
                 logger.info(f"已向群 {group_id} 发送{'开播' if is_online else '关播'}通知")
             except Exception as e:
                 logger.error(f"向群 {group_id} 发送通知失败: {e}")
+
+    def _build_share_card(self, title: str, desc: str, url: str, is_online: bool) -> str:
+        card_data = {
+            "app": "com.tencent.structmsg",
+            "desc": "直播通知",
+            "view": "news",
+            "ver": "0.0.0.1",
+            "prompt": title,
+            "meta": {
+                "news": {
+                    "action": "",
+                    "android_pkg_name": "",
+                    "app_type": 1,
+                    "appid": 100951776,
+                    "ctime": int(time.time()),
+                    "desc": desc,
+                    "jumpUrl": url,
+                    "preview": "https://i0.hdslb.com/bfs/live/b85957e4cb3386e4ac2bd55cbc22ea0d3f7626d3.png",
+                    "source_icon": "https://i0.hdslb.com/bfs/live/b85957e4cb3386e4ac2bd55cbc22ea0d3f7626d3.png",
+                    "source_url": "",
+                    "tag": "哔哩哔哩直播",
+                    "title": "🔴 正在直播" if is_online else "直播已结束"
+                }
+            }
+        }
+        return f"[CQ:json,data={json.dumps(card_data, ensure_ascii=False)}]"
 
     async def _send_to_group(self, group_id: str, chain: MessageChain):
         platforms = self.context.platform_manager.get_insts()
@@ -228,7 +283,8 @@ class StreamInfoPlugin(Star):
             if not room_id:
                 yield event.plain_result("请先绑定直播间号 (/stream roomid 房间号)")
                 return
-            status_info = await get_live_status(room_id)
+            debug_mode = self.config.get("debug_mode", False)
+            status_info = await get_live_status(room_id, debug=debug_mode)
             if status_info is None:
                 yield event.plain_result("获取直播状态失败，请检查房间号")
                 return
@@ -250,6 +306,7 @@ class StreamInfoPlugin(Star):
             offline_text = self.config.get("offline_text", "")
             check_interval = self.config.get("check_interval", 60)
             cooldown_hours = self.config.get("cooldown_hours", 4)
+            debug_mode = self.config.get("debug_mode", False)
 
             status_text = "当前配置:\n"
             status_text += f"直播间号: {room_id or '未设置'}\n"
@@ -257,6 +314,7 @@ class StreamInfoPlugin(Star):
             status_text += f"通知群: {', '.join(str(g) for g in groups) or '无'}\n"
             status_text += f"检测间隔: {check_interval}秒\n"
             status_text += f"通知冷却: {cooldown_hours}小时\n"
+            status_text += f"调试模式: {'开启' if debug_mode else '关闭'}\n"
             status_text += f"开播通知: {notify_text}\n"
             status_text += f"关播通知: {offline_text}"
             yield event.plain_result(status_text)

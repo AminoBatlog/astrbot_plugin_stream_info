@@ -40,5 +40,11 @@
     "type": "int",
     "hint": "开播通知的冷却时间，防止频繁开关播重复通知",
     "default": 4
+  },
+  "debug_mode": {
+    "description": "调试模式",
+    "type": "bool",
+    "hint": "开启后会在控制台输出详细的API返回信息，方便调试",
+    "default": false
   }
 }
