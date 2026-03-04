@@ -8,6 +8,13 @@ import aiohttp
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger, AstrBotConfig
+from astrbot.core.platform.message_type import MessageType
+from astrbot.core.message.message_event_result import MessageChain
+
+try:
+    from astrbot.core.platform.astr_message_event import MessageSession
+except ImportError:
+    from astrbot.core.platform.message_session import MessageSession
 
 BILIBILI_ROOM_API = "https://api.live.bilibili.com/room/v1/Room/get_info"
 STATE_FILE = os.path.join(os.path.dirname(__file__), "_stream_state.json")
@@ -150,16 +157,33 @@ class StreamInfoPlugin(Star):
         else:
             message = self.config.get("offline_text", "")
 
-        from astrbot.api.event import MessageChain
+        from astrbot.core.message.components import Plain
+        chain = MessageChain([Plain(message)])
 
         for group_id in groups:
             try:
-                chain = MessageChain().message(message)
-                unified_msg_origin = f"aiocqhttp:GroupMessage:{group_id}"
-                await self.context.send_message(unified_msg_origin, chain)
+                await self._send_to_group(str(group_id), chain)
                 logger.info(f"已向群 {group_id} 发送{'开播' if is_online else '关播'}通知")
             except Exception as e:
                 logger.error(f"向群 {group_id} 发送通知失败: {e}")
+
+    async def _send_to_group(self, group_id: str, chain: MessageChain):
+        platforms = self.context.platform_manager.get_insts()
+        for platform in platforms:
+            platform_name = platform.meta().name.lower()
+            if "onebot" in platform_name or "aiocqhttp" in platform_name or "napcat" in platform_name:
+                try:
+                    session = MessageSession(
+                        platform_name=platform.meta().name,
+                        message_type=MessageType.GROUP_MESSAGE,
+                        session_id=group_id
+                    )
+                    await platform.send_by_session(session, chain)
+                    return
+                except Exception as e:
+                    logger.debug(f"通过平台 {platform.meta().name} 发送失败: {e}")
+                    continue
+        raise Exception("未找到可用的 OneBot 平台")
 
     def _is_admin(self, user_id: str) -> bool:
         admins = self.config.get("admins", [])

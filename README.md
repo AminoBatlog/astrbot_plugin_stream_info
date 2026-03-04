@@ -24,7 +24,7 @@
 在 AstrBot 管理面板中，使用 GitHub 仓库链接添加插件：
 
 ```
-https://github.com/your-repo/astrbot_plugin_stream_info
+https://github.com/aminobatlog/astrbot_plugin_stream_info
 ```
 
 ## 配置说明
