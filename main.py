@@ -155,10 +155,8 @@ class StreamInfoPlugin(Star):
         for group_id in groups:
             try:
                 chain = MessageChain().message(message)
-                await self.context.send_message(
-                    unified_msg_origin=f"aiocqhttp:GroupMessage:{group_id}",
-                    message=chain,
-                )
+                unified_msg_origin = f"aiocqhttp:GroupMessage:{group_id}"
+                await self.context.send_message(unified_msg_origin, chain)
                 logger.info(f"已向群 {group_id} 发送{'开播' if is_online else '关播'}通知")
             except Exception as e:
                 logger.error(f"向群 {group_id} 发送通知失败: {e}")
