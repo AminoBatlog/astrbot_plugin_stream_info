@@ -1,5 +1,5 @@
 name: astrbot_plugin_stream_info
 description: Bilibili直播间开播检测与QQ群通知插件，支持自定义通知内容、管理员配置、定时检测等功能
-author: StreamNotify
+author: 战狼阿米诺
 version: 0.0.1
-repo: https://github.com/your-repo/astrbot_plugin_stream_info
+repo: https://github.com/aminobatlog/astrbot_plugin_stream_info
