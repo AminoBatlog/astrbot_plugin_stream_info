@@ -76,7 +76,7 @@ async def get_live_status(room_id: str) -> Optional[dict]:
     return None
 
 
-@register("stream_info", "StreamNotify", "Bilibili直播间开播检测与QQ群通知插件", "1.0.0", "https://github.com/aminobatlog/astrbot_plugin_stream_info")
+@register("stream_info", "StreamNotify", "Bilibili直播间开播检测与QQ群通知插件", "0.0.1", "https://github.com/aminobatlog/astrbot_plugin_stream_info")
 class StreamInfoPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
