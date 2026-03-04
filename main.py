@@ -16,7 +16,7 @@ try:
 except ImportError:
     from astrbot.core.platform.message_session import MessageSession
 
-BILIBILI_ROOM_API = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
+BILIBILI_ROOM_API = "https://api.live.bilibili.com/room/v1/Room/get_info"
 STATE_FILE = os.path.join(os.path.dirname(__file__), "_stream_state.json")
 
 
