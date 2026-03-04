@@ -158,36 +158,31 @@ class StreamInfoPlugin(Star):
             logger.warning("未配置通知群组，跳过通知发送")
             return
 
+        room_id = self.config.get("room_id", "")
+        link = f"https://live.bilibili.com/{room_id}"
+
         if is_online:
             text = self.config.get("notify_text", "")
-            room_id = self.config.get("room_id", "")
             title = status_info.get("title", "")
             uname = status_info.get("uname", "")
             area = status_info.get("area_name", "")
-            link = f"https://live.bilibili.com/{room_id}"
             
-            lines = [text]
+            lines = [f"🔴 {text}"]
+            lines.append("━━━━━━━━━━━━━━")
             if uname:
-                lines.append(f"主播: {uname}")
+                lines.append(f"📢 主播: {uname}")
             if title:
-                lines.append(f"标题: {title}")
+                lines.append(f"📺 标题: {title}")
             if area:
-                lines.append(f"分区: {area}")
+                lines.append(f"🏷️ 分区: {area}")
+            lines.append("━━━━━━━━━━━━━━")
+            lines.append(f"👉 点击进入直播间:\n{link}")
             message = "\n".join(lines)
         else:
-            room_id = self.config.get("room_id", "")
-            link = f"https://live.bilibili.com/{room_id}"
-            message = self.config.get("offline_text", "")
+            message = f"{self.config.get('offline_text', '')}\n\n直播间: {link}"
 
         from astrbot.core.message.components import Plain
-        
-        json_card = self._build_share_card(
-            title="📺 直播通知" if is_online else "直播已结束",
-            desc=message,
-            url=link,
-            is_online=is_online
-        )
-        chain = MessageChain([Plain(json_card)])
+        chain = MessageChain([Plain(message)])
 
         for group_id in groups:
             try:
@@ -195,32 +190,6 @@ class StreamInfoPlugin(Star):
                 logger.info(f"已向群 {group_id} 发送{'开播' if is_online else '关播'}通知")
             except Exception as e:
                 logger.error(f"向群 {group_id} 发送通知失败: {e}")
-
-    def _build_share_card(self, title: str, desc: str, url: str, is_online: bool) -> str:
-        card_data = {
-            "app": "com.tencent.structmsg",
-            "desc": "直播通知",
-            "view": "news",
-            "ver": "0.0.0.1",
-            "prompt": title,
-            "meta": {
-                "news": {
-                    "action": "",
-                    "android_pkg_name": "",
-                    "app_type": 1,
-                    "appid": 100951776,
-                    "ctime": int(time.time()),
-                    "desc": desc,
-                    "jumpUrl": url,
-                    "preview": "https://i0.hdslb.com/bfs/live/b85957e4cb3386e4ac2bd55cbc22ea0d3f7626d3.png",
-                    "source_icon": "https://i0.hdslb.com/bfs/live/b85957e4cb3386e4ac2bd55cbc22ea0d3f7626d3.png",
-                    "source_url": "",
-                    "tag": "哔哩哔哩直播",
-                    "title": "🔴 正在直播" if is_online else "直播已结束"
-                }
-            }
-        }
-        return f"[CQ:json,data={json.dumps(card_data, ensure_ascii=False)}]"
 
     async def _send_to_group(self, group_id: str, chain: MessageChain):
         platforms = self.context.platform_manager.get_insts()
