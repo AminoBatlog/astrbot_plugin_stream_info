@@ -46,5 +46,11 @@
     "type": "bool",
     "hint": "开启后会在控制台输出详细的API返回信息，方便调试",
     "default": false
+  },
+  "at_all": {
+    "description": "开播时@全体成员",
+    "type": "bool",
+    "hint": "开启后，发送开播通知时会@全体成员（需要机器人有管理员权限）",
+    "default": false
   }
 }

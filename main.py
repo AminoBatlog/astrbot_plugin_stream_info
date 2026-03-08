@@ -87,7 +87,7 @@ async def get_live_status(room_id: str, debug: bool = False) -> Optional[dict]:
     return None
 
 
-@register("stream_info", "StreamNotify", "Bilibili直播间开播检测与QQ群通知插件", "0.0.1", "https://github.com/aminobatlog/astrbot_plugin_stream_info")
+@register("stream_info", "战狼阿米诺", "Bilibili直播间开播检测与QQ群通知插件", "0.0.2", "https://github.com/aminobatlog/astrbot_plugin_stream_info")
 class StreamInfoPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -181,8 +181,14 @@ class StreamInfoPlugin(Star):
         else:
             message = f"{self.config.get('offline_text', '')}\n\n直播间: {link}"
 
-        from astrbot.core.message.components import Plain
-        chain = MessageChain([Plain(message)])
+        from astrbot.core.message.components import Plain, At
+
+        components = []
+        if is_online and self.config.get("at_all", False):
+            components.append(At(qq="all"))
+            components.append(Plain("\n"))
+        components.append(Plain(message))
+        chain = MessageChain(components)
 
         for group_id in groups:
             try:
